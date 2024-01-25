@@ -53,6 +53,8 @@ After installation the following commands are accessible within the conda enviro
 
 - One can also install directly from source:
 ```
+conda create -n pytorch-3dunet -c pytorch -c nvidia pytorch pytorch-cuda=12.1
+conda activate pytorch-3dunet
 python setup.py install
 ```
 
