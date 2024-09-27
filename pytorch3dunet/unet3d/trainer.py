@@ -1,6 +1,7 @@
 import os
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
@@ -106,25 +107,25 @@ class UNetTrainer:
 
     def __init__(
         self,
-        model,
-        optimizer,
-        lr_scheduler,
-        loss_criterion,
-        eval_criterion,
-        loaders,
-        checkpoint_dir,
-        max_num_epochs,
-        max_num_iterations,
-        validate_after_iters=200,
-        log_after_iters=100,
-        validate_iters=None,
-        num_iterations=1,
-        num_epoch=0,
-        eval_score_higher_is_better=True,
-        tensorboard_formatter=None,
-        skip_train_validation=False,
-        resume=None,
-        pre_trained=None,
+        model: nn.Module,
+        optimizer: torch.optim.Optimizer,
+        lr_scheduler: torch.optim.lr_scheduler._LRScheduler,
+        loss_criterion: callable,
+        eval_criterion: callable,
+        loaders: dict[str, DataLoader],
+        checkpoint_dir: str,
+        max_num_epochs: int,
+        max_num_iterations: int,
+        validate_after_iters: int = 200,
+        log_after_iters: int = 100,
+        validate_iters: int | None = None,
+        num_iterations: int = 1,
+        num_epoch: int = 0,
+        eval_score_higher_is_better: bool = True,
+        tensorboard_formatter: callable | None = None,
+        skip_train_validation: bool= False,
+        resume: str | None = None,
+        pre_trained: str | None = None,
         **kwargs,
     ):
 
