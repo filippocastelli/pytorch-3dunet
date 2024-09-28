@@ -309,21 +309,22 @@ class UNetTrainer:
         val_scores = utils.RunningAverage()
 
         with torch.no_grad():
-            for i, t in enumerate(self.loaders["val"]):
-                logger.info(f"Validation iteration {i}")
-
+            for idx, t in enumerate(self.loaders["val"]):
+                
+                logger.info(f"Validation step [{idx}/{self._len_loaders['val']}]")
+                
                 input, target, weight = self._split_training_batch(t)
 
                 output, loss = self._forward_pass(input, target, weight)
                 val_losses.update(loss.item(), self._batch_size(input))
 
-                if i % 100 == 0:
+                if idx % 100 == 0:
                     self._log_images(input, target, output, "val_")
 
                 eval_score = self.eval_criterion(output, target)
                 val_scores.update(eval_score.item(), self._batch_size(input))
 
-                if self.validate_iters is not None and self.validate_iters <= i:
+                if self.validate_iters is not None and self.validate_iters <= idx:
                     # stop validation
                     break
 
@@ -354,7 +355,7 @@ class UNetTrainer:
             self,
             input: torch.Tensor,
             target: torch.Tensor,
-            weight: torch.Tensor | None = None):
+            weight: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]:
         if isinstance(self.model, UNet2D):
             # remove the singleton z-dimension from the input
             input = torch.squeeze(input, dim=-3)
