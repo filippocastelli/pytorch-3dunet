@@ -22,7 +22,7 @@ from . import utils
 logger = get_logger("UNetTrainer")
 
 
-def create_trainer(config):
+def create_trainer(config: dict) -> "UNetTrainer":
     # Create the model
     model = get_model(config["model"])
 
@@ -122,7 +122,7 @@ class UNetTrainer:
         num_iterations: int = 1,
         num_epoch: int = 0,
         eval_score_higher_is_better: bool = True,
-        tensorboard_formatter: callable | None = None,
+        tensorboard_formatter: callable = None,
         skip_train_validation: bool= False,
         resume: str | None = None,
         pre_trained: str | None = None,
@@ -142,6 +142,8 @@ class UNetTrainer:
         self.log_after_iters = log_after_iters
         self.validate_iters = validate_iters
         self.eval_score_higher_is_better = eval_score_higher_is_better
+
+        self._len_loaders = {k: len(v) for k, v in loaders.items()}
 
         logger.info(model)
         logger.info(f"eval_score_higher_is_better: {eval_score_higher_is_better}")
@@ -184,7 +186,7 @@ class UNetTrainer:
             if "checkpoint_dir" not in kwargs:
                 self.checkpoint_dir = os.path.split(pre_trained)[0]
 
-    def fit(self):
+    def fit(self) -> None:
         for _ in range(self.num_epochs, self.max_num_epochs):
             # train for one epoch
             should_terminate = self.train()
@@ -198,7 +200,7 @@ class UNetTrainer:
             f"Reached maximum number of epochs: {self.max_num_epochs}. Finishing training..."
         )
 
-    def train(self):
+    def train(self) -> bool:
         """Trains the model for 1 epoch.
 
         Returns:
@@ -210,9 +212,10 @@ class UNetTrainer:
         # sets the model in training mode
         self.model.train()
 
-        for t in self.loaders["train"]:
+        for idx, t in enumerate(self.loaders["train"]):
             logger.info(
-                f"Training iteration [{self.num_iterations}/{self.max_num_iterations}]. "
+                f"Training step [{idx}/{self._len_loaders['train']}] - "
+                f"Training iteration [{self.num_iterations}/{self.max_num_iterations}] - "
                 f"Epoch [{self.num_epochs}/{self.max_num_epochs - 1}]"
             )
 
@@ -280,7 +283,7 @@ class UNetTrainer:
 
         return False
 
-    def should_stop(self):
+    def should_stop(self) -> bool:
         """
         Training will terminate if maximum number of iterations is exceeded or the learning rate drops below
         some predefined threshold (1e-6 in our case)
@@ -299,7 +302,7 @@ class UNetTrainer:
 
         return False
 
-    def validate(self):
+    def validate(self) -> float:
         logger.info("Validating...")
 
         val_losses = utils.RunningAverage()
@@ -330,8 +333,8 @@ class UNetTrainer:
             )
             return val_scores.avg
 
-    def _split_training_batch(self, t):
-        def _move_to_gpu(input):
+    def _split_training_batch(self, t: torch.Tensor | tuple | list) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+        def _move_to_gpu(input: torch.Tensor | tuple | list) -> torch.Tensor | tuple | list:
             if isinstance(input, tuple) or isinstance(input, list):
                 return tuple([_move_to_gpu(x) for x in input])
             else:
@@ -347,7 +350,11 @@ class UNetTrainer:
             input, target, weight = t
         return input, target, weight
 
-    def _forward_pass(self, input, target, weight=None):
+    def _forward_pass(
+            self,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            weight: torch.Tensor | None = None):
         if isinstance(self.model, UNet2D):
             # remove the singleton z-dimension from the input
             input = torch.squeeze(input, dim=-3)
@@ -367,7 +374,7 @@ class UNetTrainer:
 
         return output, loss
 
-    def _is_best_eval_score(self, eval_score):
+    def _is_best_eval_score(self, eval_score: float) -> bool:
         if self.eval_score_higher_is_better:
             is_best = eval_score > self.best_eval_score
         else:
@@ -379,7 +386,7 @@ class UNetTrainer:
 
         return is_best
 
-    def _save_checkpoint(self, is_best):
+    def _save_checkpoint(self, is_best: bool) -> None:
         # remove `module` prefix from layer names when using `nn.DataParallel`
         # see: https://discuss.pytorch.org/t/solved-keyerror-unexpected-key-module-encoder-embedding-weight-in-state-dict/1686/20
         if isinstance(self.model, nn.DataParallel):
@@ -402,11 +409,16 @@ class UNetTrainer:
             checkpoint_dir=self.checkpoint_dir,
         )
 
-    def _log_lr(self):
+    def _log_lr(self) -> None:
         lr = self.optimizer.param_groups[0]["lr"]
         self.writer.add_scalar("learning_rate", lr, self.num_iterations)
 
-    def _log_stats(self, phase, loss_avg, eval_score_avg):
+    def _log_stats(
+            self,
+            phase: str,
+            loss_avg: float,
+            eval_score_avg: float,
+            ) -> None:
         tag_value = {
             f"{phase}_loss_avg": loss_avg,
             f"{phase}_eval_score_avg": eval_score_avg,
@@ -415,7 +427,7 @@ class UNetTrainer:
         for tag, value in tag_value.items():
             self.writer.add_scalar(tag, value, self.num_iterations)
 
-    def _log_params(self):
+    def _log_params(self) -> None:
         logger.info("Logging model parameters and gradients")
         for name, value in self.model.named_parameters():
             self.writer.add_histogram(
@@ -425,7 +437,12 @@ class UNetTrainer:
                 name + "/grad", value.grad.data.cpu().numpy(), self.num_iterations
             )
 
-    def _log_images(self, input, target, prediction, prefix=""):
+    def _log_images(
+            self,
+            input: torch.Tensor,
+            target: torch.Tensor,
+            prediction : torch.Tensor,
+            prefix: str = "") -> None:
 
         if isinstance(self.model, nn.DataParallel):
             net = self.model.module
@@ -449,7 +466,7 @@ class UNetTrainer:
                 self.writer.add_image(prefix + tag, image, self.num_iterations)
 
     @staticmethod
-    def _batch_size(input):
+    def _batch_size(input: torch.Tensor) -> int:
         if isinstance(input, list) or isinstance(input, tuple):
             return input[0].size(0)
         else:
