@@ -10,7 +10,12 @@ import torch
 from torch import optim
 
 
-def save_checkpoint(state, is_best, checkpoint_dir):
+def save_checkpoint(
+        state: dict,
+        is_best: bool,
+        checkpoint_dir: str,
+        last_checkpoint_filename: str = 'last_checkpoint.pytorch',
+        ):
     """Saves model and training parameters at '{checkpoint_dir}/last_checkpoint.pytorch'.
     If is_best==True saves '{checkpoint_dir}/best_checkpoint.pytorch' as well.
 
@@ -24,7 +29,7 @@ def save_checkpoint(state, is_best, checkpoint_dir):
     if not os.path.exists(checkpoint_dir):
         os.mkdir(checkpoint_dir)
 
-    last_file_path = os.path.join(checkpoint_dir, 'last_checkpoint.pytorch')
+    last_file_path = os.path.join(checkpoint_dir, last_checkpoint_filename)
     torch.save(state, last_file_path)
     if is_best:
         best_file_path = os.path.join(checkpoint_dir, 'best_checkpoint.pytorch')

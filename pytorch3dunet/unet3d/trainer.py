@@ -212,6 +212,16 @@ class UNetTrainer:
         # sets the model in training mode
         self.model.train()
 
+        DEBUG_DATALOADERS = False
+
+        if DEBUG_DATALOADERS:
+            # get an element from the training data loader and one from the validation data loader
+            train_elem = next(iter(self.loaders["train"]))
+            val_elem = next(iter(self.loaders["val"]))
+            # log the shapes of the training and validation elements
+            logger.info(f"Training elemenent shape: {train_elem[0].shape}")
+            logger.info(f"Validation elementent shape: {val_elem[0].shape}")
+
         for idx, t in enumerate(self.loaders["train"]):
             logger.info(
                 f"Training step [{idx}/{self._len_loaders['train']}] - "
@@ -394,8 +404,9 @@ class UNetTrainer:
             state_dict = self.model.module.state_dict()
         else:
             state_dict = self.model.state_dict()
-
-        last_file_path = os.path.join(self.checkpoint_dir, "last_checkpoint.pytorch")
+        
+        last_checkpoint_filename = f"checkpoint_iteration_{self.num_iterations}_epoch_{self.num_epochs+1}.pytorch"
+        last_file_path = os.path.join(self.checkpoint_dir, last_checkpoint_filename)
         logger.info(f"Saving checkpoint to '{last_file_path}'")
 
         utils.save_checkpoint(
@@ -408,6 +419,7 @@ class UNetTrainer:
             },
             is_best,
             checkpoint_dir=self.checkpoint_dir,
+            last_checkpoint_filename=last_checkpoint_filename,
         )
 
     def _log_lr(self) -> None:
